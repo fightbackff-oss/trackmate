@@ -2,6 +2,7 @@ import { User, UserStatus, Alert } from './types';
 
 export const MOCK_CURRENT_USER: User = {
   id: 'me',
+  username: 'me',
   name: 'Me',
   avatar: 'https://i.pravatar.cc/150?u=me',
   email: 'user@trackmate.app',
@@ -14,6 +15,7 @@ export const MOCK_CURRENT_USER: User = {
 export const MOCK_FRIENDS: User[] = [
   {
     id: 'f1',
+    username: 'alex',
     name: 'Alex',
     avatar: 'https://i.pravatar.cc/150?u=alex',
     email: 'alex@trackmate.app',
@@ -25,6 +27,7 @@ export const MOCK_FRIENDS: User[] = [
   },
   {
     id: 'f2',
+    username: 'jordan',
     name: 'Jordan',
     avatar: 'https://i.pravatar.cc/150?u=jordan',
     email: 'jordan@trackmate.app',
@@ -36,6 +39,7 @@ export const MOCK_FRIENDS: User[] = [
   },
   {
     id: 'f3',
+    username: 'taylor',
     name: 'Taylor',
     avatar: 'https://i.pravatar.cc/150?u=taylor',
     email: 'taylor@trackmate.app',
@@ -47,6 +51,7 @@ export const MOCK_FRIENDS: User[] = [
   },
   {
     id: 'f4',
+    username: 'jamie',
     name: 'Jamie',
     avatar: 'https://i.pravatar.cc/150?u=jamie',
     email: 'jamie@trackmate.app',
