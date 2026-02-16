@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MapPin, Mail, Lock, User, ArrowLeft, Shield, AlertCircle, Eye, EyeOff, ArrowRight, Check } from 'lucide-react';
+import { MapPin, Mail, Lock, User, ArrowLeft, Shield, AlertCircle, Eye, EyeOff, ArrowRight, Check, AtSign } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
 type AuthView = 'WELCOME' | 'LOGIN' | 'SIGNUP' | 'VERIFY_OTP';
@@ -66,10 +66,13 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const [view, setView] = useState<AuthView>('WELCOME');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
+  
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(59);
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
@@ -117,10 +120,27 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) { setError("Passwords do not match"); return; }
+    if (username.length < 3) { setError("Username must be at least 3 characters"); return; }
+    
     setIsLoading(true);
     setError(null);
     try {
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name: fullName } } });
+      // Check username availability first (optional check, main check is DB constraint)
+      const { data: existingUser } = await supabase.from('users').select('id').eq('username', username).single();
+      if (existingUser) {
+          throw new Error("Username already taken");
+      }
+
+      const { data, error } = await supabase.auth.signUp({ 
+          email, 
+          password, 
+          options: { 
+              data: { 
+                  name: fullName,
+                  username: username 
+              } 
+          } 
+      });
       if (error) throw error;
       if (data.session) onLogin();
       else { setTimer(59); setOtp(['', '', '', '', '', '']); setView('VERIFY_OTP'); }
@@ -238,7 +258,10 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
 
         <form onSubmit={view === 'SIGNUP' ? handleSignup : handleLogin} className="flex-1 flex flex-col">
           {view === 'SIGNUP' && (
+             <>
               <InputField icon={User} type="text" placeholder="Full Name" value={fullName} onChange={setFullName} />
+              <InputField icon={AtSign} type="text" placeholder="Username" value={username} onChange={setUsername} />
+             </>
           )}
           <InputField icon={Mail} type="email" placeholder="Email Address" value={email} onChange={setEmail} />
           <InputField icon={Lock} type="password" placeholder="Password" isPassword={true} value={password} onChange={setPassword} />
