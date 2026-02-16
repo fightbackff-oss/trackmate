@@ -53,7 +53,7 @@ const InputField = ({
   );
 };
 
-const ScreenWrapper = ({ children }: { children: React.ReactNode }) => (
+const ScreenWrapper = ({ children }: { children?: React.ReactNode }) => (
   <div className="h-[100dvh] w-full bg-[#f0f9ff] dark:bg-[#05080a] text-slate-900 dark:text-white flex flex-col p-6 relative overflow-hidden font-sans transition-colors duration-300">
     {/* Ambient Glows */}
     <div className="absolute top-[-10%] right-[-20%] w-[80%] h-[40%] bg-[#e0f7fa] dark:bg-[#0f2e2e] rounded-full blur-[100px] pointer-events-none opacity-60 dark:opacity-40 transition-colors duration-500"></div>
@@ -122,11 +122,13 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
     if (password !== confirmPassword) { setError("Passwords do not match"); return; }
     if (username.length < 3) { setError("Username must be at least 3 characters"); return; }
     
+    const finalUsername = username.toLowerCase(); // Enforce lowercase
+
     setIsLoading(true);
     setError(null);
     try {
       // Check username availability first (optional check, main check is DB constraint)
-      const { data: existingUser } = await supabase.from('users').select('id').eq('username', username).single();
+      const { data: existingUser } = await supabase.from('users').select('id').eq('username', finalUsername).single();
       if (existingUser) {
           throw new Error("Username already taken");
       }
@@ -137,11 +139,30 @@ const AuthScreen: React.FC<AuthScreenProps> = ({ onLogin }) => {
           options: { 
               data: { 
                   name: fullName,
-                  username: username 
+                  username: finalUsername 
               } 
           } 
       });
       if (error) throw error;
+
+      // Explicitly insert into users table to ensure searchability
+      if (data.user) {
+         const { error: insertError } = await supabase.from('users').insert({
+            id: data.user.id,
+            email: email,
+            username: finalUsername, // Store as lowercase
+            name: fullName,
+            is_tracking_enabled: true
+         });
+         
+         if (insertError) {
+             // Ignore duplicate key error (23505) if user was already created by a trigger
+             if (insertError.code !== '23505') {
+                 console.error("Failed to create user profile:", insertError);
+             }
+         }
+      }
+
       if (data.session) onLogin();
       else { setTimer(59); setOtp(['', '', '', '', '', '']); setView('VERIFY_OTP'); }
     } catch (err: any) { setError(err.message || 'Signup failed'); } finally { setIsLoading(false); }
