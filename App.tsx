@@ -23,6 +23,7 @@ const mapDbUserToAppUser = (dbUser: any): User => {
   
   return {
     id: dbUser.id,
+    username: dbUser.username || dbUser.email?.split('@')[0] || 'unknown',
     name: dbUser.name || dbUser.email?.split('@')[0] || 'Unknown',
     email: dbUser.email,
     avatar: dbUser.profile_image || DEFAULT_AVATAR,
@@ -161,7 +162,10 @@ const App: React.FC = () => {
 
   // Filtered friends for Map Search
   const filteredFriendIds = searchTerm 
-    ? friends.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase())).map(f => f.id)
+    ? friends.filter(f => 
+        f.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        f.username.toLowerCase().includes(searchTerm.toLowerCase())
+      ).map(f => f.id)
     : undefined;
 
   // --- 1. AUTH & INIT ---
@@ -184,10 +188,13 @@ const App: React.FC = () => {
       const { data: profile } = await supabase.from('users').select('*').eq('id', authUser.id).single();
       
       if (!profile) {
+        // Create new profile if it doesn't exist
         const newProfile = {
           id: authUser.id,
           email: authUser.email,
           name: authUser.user_metadata?.name || authUser.email.split('@')[0],
+          // Use username from metadata if available (set during Signup), otherwise derive from email
+          username: authUser.user_metadata?.username || authUser.email.split('@')[0],
           profile_image: null,
           is_tracking_enabled: true
         };
@@ -206,7 +213,7 @@ const App: React.FC = () => {
   const fetchFriends = async (userId: string) => {
     try {
       const { data } = await supabase.from('friends')
-        .select(`friend:users!friend_id(id, name, email, profile_image, last_seen, is_tracking_enabled, live_locations(latitude, longitude, battery_level, updated_at, is_online, accuracy))`)
+        .select(`friend:users!friend_id(id, username, name, email, profile_image, last_seen, is_tracking_enabled, live_locations(latitude, longitude, battery_level, updated_at, is_online, accuracy))`)
         .eq('user_id', userId);
 
       if (data) setFriends(data.map((item: any) => mapDbUserToAppUser(item.friend)));
@@ -294,14 +301,32 @@ const App: React.FC = () => {
   }, [startTracking]);
 
   // --- 4. ACTIONS ---
-  const handleAddFriend = async (email: string) => {
+  const handleAddFriend = async (identifier: string) => {
     if (!session?.user) return;
     try {
-      const { data: users } = await supabase.from('users').select('id').eq('email', email);
+      // Search by email OR username
+      const { data: users } = await supabase
+        .from('users')
+        .select('id')
+        .or(`email.eq.${identifier},username.eq.${identifier}`);
+
       if(users && users.length > 0) {
+        // Prevent adding self
+        if (users[0].id === session.user.id) {
+            alert("You cannot add yourself.");
+            return;
+        }
+
+        // Check if already friends (simple check logic for now)
+        const isAlreadyFriend = friends.some(f => f.id === users[0].id);
+        if (isAlreadyFriend) {
+            alert("Already in your friends list.");
+            return;
+        }
+
         await supabase.from('friends').insert({ user_id: session.user.id, friend_id: users[0].id });
         fetchFriends(session.user.id);
-        alert(`Added ${email}`);
+        alert(`Friend request sent to ${identifier}`);
       } else {
         alert("User not found");
       }
@@ -328,10 +353,22 @@ const App: React.FC = () => {
 
   const handleUpdateProfile = async (updates: Partial<User>) => {
     if (!currentUser || !session) return;
+
+    // Special check for username uniqueness if being updated
+    if (updates.username && updates.username !== currentUser.username) {
+        const { data: existing } = await supabase.from('users').select('id').eq('username', updates.username);
+        if (existing && existing.length > 0) {
+            alert("Username already taken.");
+            return;
+        }
+    }
+
     setCurrentUser({ ...currentUser, ...updates });
     const dbUpdates: any = {};
     if (updates.name) dbUpdates.name = updates.name;
+    if (updates.username) dbUpdates.username = updates.username;
     if (updates.avatar !== undefined) dbUpdates.profile_image = updates.avatar || null;
+    
     await supabase.from('users').update(dbUpdates).eq('id', session.user.id);
   };
 
