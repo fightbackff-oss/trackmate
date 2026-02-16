@@ -1,5 +1,5 @@
 import React from 'react';
-import { User as UserIcon, Edit2, LogOut, MapPin, ChevronRight, EyeOff, Shield, Activity, Moon, Sun } from 'lucide-react';
+import { User as UserIcon, Edit2, LogOut, MapPin, ChevronRight, EyeOff, Shield, Activity, Moon, Sun, AtSign } from 'lucide-react';
 import { User } from '../types';
 
 interface SettingsViewProps {
@@ -41,33 +41,57 @@ const SettingsView: React.FC<SettingsViewProps> = ({
        <div className="mb-8">
           <h2 className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-widest mb-4 px-1">Account</h2>
           <div className="glass-card rounded-[32px] overflow-hidden bg-white/50 dark:bg-transparent">
-             <div className="w-full p-6 flex items-center justify-between border-b border-slate-200 dark:border-white/5">
-                <div className="flex items-center space-x-4">
-                   <button 
-                     onClick={() => {
-                       const url = prompt("Enter profile image URL:");
-                       if (url !== null) onUpdateProfile({ avatar: url });
-                     }}
-                     className="relative group w-14 h-14"
-                   >
-                     <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 dark:border-white/10">
-                        <img src={currentUser?.avatar} className="w-full h-full object-cover" />
-                     </div>
-                     <div className="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center rounded-full">
-                       <Edit2 size={16} className="text-white" />
-                     </div>
-                   </button>
-                   <div className="text-left">
-                      <span className="block text-lg font-bold text-slate-900 dark:text-white">{currentUser?.name || 'User'}</span>
-                      <span className="block text-xs text-slate-500 dark:text-gray-400 mt-1 uppercase tracking-wide">{currentUser?.email}</span>
-                   </div>
+             <div className="w-full p-6 flex flex-col gap-6 border-b border-slate-200 dark:border-white/5">
+                
+                {/* Profile Header */}
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                        <button 
+                            onClick={() => {
+                            const url = prompt("Enter profile image URL:");
+                            if (url !== null) onUpdateProfile({ avatar: url });
+                            }}
+                            className="relative group w-14 h-14"
+                        >
+                            <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-slate-200 dark:border-white/10">
+                                <img src={currentUser?.avatar} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="absolute inset-0 bg-black/60 hidden group-hover:flex items-center justify-center rounded-full">
+                            <Edit2 size={16} className="text-white" />
+                            </div>
+                        </button>
+                        <div className="text-left">
+                            <span className="block text-lg font-bold text-slate-900 dark:text-white">{currentUser?.name || 'User'}</span>
+                            <span className="block text-xs text-slate-500 dark:text-gray-400 mt-1 uppercase tracking-wide">{currentUser?.email}</span>
+                        </div>
+                    </div>
+                    <button onClick={() => {
+                        const name = prompt("Enter new name:", currentUser?.name);
+                        if (name) onUpdateProfile({ name });
+                        }} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center hover:bg-[#a3e635] hover:text-black transition-colors">
+                        <Edit2 size={16} />
+                    </button>
                 </div>
-                <button onClick={() => {
-                   const name = prompt("Enter new name:", currentUser?.name);
-                   if (name) onUpdateProfile({ name });
-                }} className="w-10 h-10 rounded-full bg-slate-100 dark:bg-white/5 flex items-center justify-center hover:bg-[#a3e635] hover:text-black transition-colors">
-                  <Edit2 size={16} />
-                </button>
+
+                {/* Username Field */}
+                <div className="flex items-center justify-between bg-slate-100 dark:bg-black/20 p-4 rounded-2xl">
+                    <div className="flex items-center gap-3">
+                         <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-white/10 flex items-center justify-center text-slate-500 dark:text-gray-400">
+                             <AtSign size={14} />
+                         </div>
+                         <div>
+                            <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-gray-500 tracking-wider">Username</span>
+                            <p className="text-sm font-semibold text-slate-800 dark:text-white">@{currentUser?.username}</p>
+                         </div>
+                    </div>
+                    <button onClick={() => {
+                        const username = prompt("Enter new username:", currentUser?.username);
+                        if (username) onUpdateProfile({ username });
+                    }} className="text-xs font-bold text-[#65a30d] dark:text-[#a3e635] hover:underline uppercase tracking-wider">
+                        Change
+                    </button>
+                </div>
+
              </div>
              <button onClick={onLogout} className="w-full p-5 flex items-center space-x-4 text-red-500 dark:text-red-400 hover:bg-red-500/10 transition-colors">
                 <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center">
