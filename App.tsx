@@ -194,7 +194,8 @@ const App: React.FC = () => {
           email: authUser.email,
           name: authUser.user_metadata?.name || authUser.email.split('@')[0],
           // Use username from metadata if available (set during Signup), otherwise derive from email
-          username: authUser.user_metadata?.username || authUser.email.split('@')[0],
+          // Ensure username is lowercase
+          username: (authUser.user_metadata?.username || authUser.email.split('@')[0]).toLowerCase(),
           profile_image: null,
           is_tracking_enabled: true
         };
@@ -304,11 +305,12 @@ const App: React.FC = () => {
   const handleAddFriend = async (identifier: string) => {
     if (!session?.user) return;
     try {
+      const searchLower = identifier.toLowerCase(); // Enforce lowercase for search
       // Search by email OR username
       const { data: users } = await supabase
         .from('users')
         .select('id')
-        .or(`email.eq.${identifier},username.eq.${identifier}`);
+        .or(`email.eq.${searchLower},username.eq.${searchLower}`);
 
       if(users && users.length > 0) {
         // Prevent adding self
@@ -354,20 +356,25 @@ const App: React.FC = () => {
   const handleUpdateProfile = async (updates: Partial<User>) => {
     if (!currentUser || !session) return;
 
+    const finalUpdates = { ...updates };
+    if (finalUpdates.username) {
+        finalUpdates.username = finalUpdates.username.toLowerCase(); // Enforce lowercase on update
+    }
+
     // Special check for username uniqueness if being updated
-    if (updates.username && updates.username !== currentUser.username) {
-        const { data: existing } = await supabase.from('users').select('id').eq('username', updates.username);
+    if (finalUpdates.username && finalUpdates.username !== currentUser.username) {
+        const { data: existing } = await supabase.from('users').select('id').eq('username', finalUpdates.username);
         if (existing && existing.length > 0) {
             alert("Username already taken.");
             return;
         }
     }
 
-    setCurrentUser({ ...currentUser, ...updates });
+    setCurrentUser({ ...currentUser, ...finalUpdates });
     const dbUpdates: any = {};
-    if (updates.name) dbUpdates.name = updates.name;
-    if (updates.username) dbUpdates.username = updates.username;
-    if (updates.avatar !== undefined) dbUpdates.profile_image = updates.avatar || null;
+    if (finalUpdates.name) dbUpdates.name = finalUpdates.name;
+    if (finalUpdates.username) dbUpdates.username = finalUpdates.username;
+    if (finalUpdates.avatar !== undefined) dbUpdates.profile_image = finalUpdates.avatar || null;
     
     await supabase.from('users').update(dbUpdates).eq('id', session.user.id);
   };
