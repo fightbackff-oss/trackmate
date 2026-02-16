@@ -33,6 +33,7 @@ const FriendsView: React.FC<FriendsViewProps> = ({
 
   const filteredFriends = friends.filter(f => 
     f.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    f.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     f.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -88,10 +89,10 @@ const FriendsView: React.FC<FriendsViewProps> = ({
             </div>
             <div className="flex gap-2">
               <input 
-                type="email" 
+                type="text" 
                 value={newFriendEmail}
                 onChange={(e) => setNewFriendEmail(e.target.value)}
-                placeholder="Enter email address"
+                placeholder="Enter username or email"
                 className="flex-1 bg-slate-100 dark:bg-black/40 border border-slate-200 dark:border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#a3e635] text-slate-900 dark:text-white placeholder-slate-400"
               />
               <button 
@@ -124,7 +125,7 @@ const FriendsView: React.FC<FriendsViewProps> = ({
                     <div>
                        <h3 className="font-bold text-lg text-slate-900 dark:text-white group-hover:text-[#65a30d] dark:group-hover:text-[#a3e635] transition-colors">{friend.name}</h3>
                        <p className="text-xs text-slate-500 dark:text-gray-400 flex items-center mt-1 font-medium tracking-wide">
-                          {friend.status === UserStatus.MOVING ? 'MOVING' : 'ONLINE'} 
+                          @{friend.username}
                           <span className="mx-2 opacity-50">|</span> 
                           <span className={friend.batteryLevel < 20 ? "text-red-500 dark:text-red-400" : "text-[#65a30d] dark:text-[#a3e635]"}>{friend.batteryLevel}% BATT</span>
                        </p>
