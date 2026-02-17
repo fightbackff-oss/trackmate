@@ -1,7 +1,0 @@
-{
-  "name": "Tracko",
-  "description": "A secure, privacy-focused location sharing web application allowing real-time tracking with explicit consent.",
-  "requestFramePermissions": [
-    "geolocation"
-  ]
-}
