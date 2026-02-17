@@ -1,6 +1,7 @@
 const CACHE_NAME = 'trackmate-v1';
 const OFFLINE_URL = '/offline.html';
 
+// Assets to precache immediately
 const ASSETS_TO_PRECACHE = [
   OFFLINE_URL,
   '/icon-192.png', 
@@ -44,10 +45,13 @@ self.addEventListener('fetch', (event) => {
   }
 
   // 2. API Requests (Supabase) - Network Only
+  // We do not cache API calls to ensure real-time location data is always fresh
   if (requestUrl.hostname.includes('supabase.co')) {
     event.respondWith(
       fetch(event.request)
         .catch(() => {
+           // For location apps, stale data is worse than no data.
+           // However, if you had a specific read-only endpoint to cache, you could do it here.
            return caches.match(event.request); 
         })
     );
