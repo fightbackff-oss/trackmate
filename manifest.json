@@ -1,0 +1,12 @@
+{
+  "background_color": "#ffffff",
+  "dir": "auto",
+  "display": "fullscreen",
+  "name": "trackmatewebapp.vercel",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "trackmatewebapp.vercel",
+  "start_url": "/https://trackmatewebapp.vercel.app/",
+  "theme_color": "#ffffff",
+  "lang": "en"
+}
