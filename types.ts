@@ -29,7 +29,7 @@ export interface User {
 
 export interface FriendRequest {
   id: string;
-  requester_id: string; // db column often sender_id, mapped manually or via join
+  requester_id: string; // Correct column name
   receiver_id: string;
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;
