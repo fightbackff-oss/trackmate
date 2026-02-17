@@ -229,10 +229,10 @@ const App: React.FC = () => {
   // --- FETCH PENDING REQUESTS ---
   const fetchFriendRequests = async (userId: string) => {
     try {
-      // Correctly filter by receiver_id = current user AND status = pending
+      // Use requester_id for join based on foreign key
       const { data, error } = await supabase
         .from("friend_requests")
-        .select("*, sender:users!sender_id(*)") // Join sender details
+        .select("*, sender:users!requester_id(*)") // Joined via requester_id
         .eq("receiver_id", userId)
         .eq("status", "pending");
 
@@ -241,7 +241,7 @@ const App: React.FC = () => {
       if (data) {
         const requests: FriendRequest[] = data.map((req: any) => ({
             id: req.id,
-            requester_id: req.sender_id,
+            requester_id: req.requester_id, // Mapped from requester_id column
             receiver_id: req.receiver_id,
             status: req.status,
             created_at: req.created_at,
@@ -365,10 +365,11 @@ const App: React.FC = () => {
         }
 
         // Check for existing pending request to avoid duplicates
+        // Use requester_id instead of sender_id
         const { data: existingRequest } = await supabase
             .from('friend_requests')
             .select('*')
-            .eq('sender_id', session.user.id)
+            .eq('requester_id', session.user.id) 
             .eq('receiver_id', users[0].id)
             .eq('status', 'pending')
             .single();
@@ -378,9 +379,9 @@ const App: React.FC = () => {
             return;
         }
 
-        // Insert into Friend Requests table
+        // Insert into Friend Requests table using requester_id
         const { error } = await supabase.from('friend_requests').insert({ 
-            sender_id: session.user.id, 
+            requester_id: session.user.id, 
             receiver_id: users[0].id,
             status: 'pending'
         });
