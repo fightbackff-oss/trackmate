@@ -1,21 +1,27 @@
 import React, { useState } from 'react';
-import { Menu, Search, UserPlus, X, Send, Battery, Navigation, Sliders } from 'lucide-react';
-import { User, UserStatus } from '../types';
+import { Menu, Search, UserPlus, X, Send, Battery, Navigation, Sliders, Check, UserMinus } from 'lucide-react';
+import { User, UserStatus, FriendRequest } from '../types';
 
 interface FriendsViewProps {
   friends: User[];
+  friendRequests?: FriendRequest[];
   onAddFriend: (email: string) => void;
   currentUser: User | null;
   onLocateFriend: (friend: User) => void;
   onOpenMenu: () => void;
+  onAcceptRequest?: (request: FriendRequest) => void;
+  onDeclineRequest?: (requestId: string) => void;
 }
 
 const FriendsView: React.FC<FriendsViewProps> = ({ 
   friends, 
+  friendRequests = [],
   onAddFriend, 
   currentUser,
   onLocateFriend,
-  onOpenMenu
+  onOpenMenu,
+  onAcceptRequest,
+  onDeclineRequest
 }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [newFriendEmail, setNewFriendEmail] = useState('');
@@ -102,6 +108,40 @@ const FriendsView: React.FC<FriendsViewProps> = ({
               >
                 {loading ? <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div> : <Send size={18} />}
               </button>
+            </div>
+         </div>
+       )}
+
+       {/* Pending Requests Section */}
+       {friendRequests.length > 0 && (
+         <div className="mb-8">
+            <h2 className="text-xs font-bold text-slate-500 dark:text-gray-500 uppercase tracking-widest mb-4 px-1">Pending Requests</h2>
+            <div className="space-y-3">
+               {friendRequests.map(req => (
+                 <div key={req.id} className="glass-card bg-white/50 dark:bg-white/5 rounded-[24px] p-4 flex items-center justify-between border-l-4 border-[#a3e635]">
+                    <div className="flex items-center space-x-3">
+                       <img src={req.sender?.avatar || "https://i.pravatar.cc/150"} className="w-10 h-10 rounded-full object-cover" />
+                       <div>
+                          <h4 className="font-bold text-sm text-slate-900 dark:text-white">{req.sender?.name || 'Unknown'}</h4>
+                          <p className="text-xs text-slate-500 dark:text-gray-400">@{req.sender?.username || 'user'}</p>
+                       </div>
+                    </div>
+                    <div className="flex gap-2">
+                       <button 
+                         onClick={() => onAcceptRequest && onAcceptRequest(req)}
+                         className="w-9 h-9 rounded-full bg-[#a3e635] text-black flex items-center justify-center hover:scale-105 transition-transform"
+                       >
+                         <Check size={16} />
+                       </button>
+                       <button 
+                         onClick={() => onDeclineRequest && onDeclineRequest(req.id)}
+                         className="w-9 h-9 rounded-full bg-slate-200 dark:bg-white/10 text-slate-500 dark:text-gray-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
+                       >
+                         <X size={16} />
+                       </button>
+                    </div>
+                 </div>
+               ))}
             </div>
          </div>
        )}
