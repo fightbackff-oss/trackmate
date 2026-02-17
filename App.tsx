@@ -11,7 +11,7 @@ import FriendsView from './components/FriendsView';
 import AlertsView from './components/AlertsView';
 import SettingsView from './components/SettingsView';
 import Sidebar from './components/Sidebar';
-import { User, Alert, UserStatus } from './types';
+import { User, Alert, UserStatus, FriendRequest } from './types';
 import { supabase } from './supabaseClient';
 
 // --- HELPERS ---
@@ -21,6 +21,11 @@ const DEFAULT_AVATAR = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy
 const mapDbUserToAppUser = (dbUser: any): User => {
   const liveLoc = dbUser.live_locations?.[0] || dbUser.live_locations;
   
+  // Validate coordinates to prevent (undefined, undefined) errors in Leaflet
+  const hasValidCoords = liveLoc && 
+                         typeof liveLoc.latitude === 'number' && 
+                         typeof liveLoc.longitude === 'number';
+
   return {
     id: dbUser.id,
     username: dbUser.username || dbUser.email?.split('@')[0] || 'unknown',
@@ -31,7 +36,7 @@ const mapDbUserToAppUser = (dbUser: any): User => {
     lastSeen: liveLoc?.updated_at || dbUser.last_seen || new Date().toISOString(),
     status: liveLoc?.is_online ? UserStatus.ONLINE : UserStatus.OFFLINE,
     batteryLevel: liveLoc?.battery_level || 50,
-    location: liveLoc ? {
+    location: hasValidCoords ? {
       lat: liveLoc.latitude,
       lng: liveLoc.longitude,
       timestamp: new Date(liveLoc.updated_at).getTime(),
@@ -145,6 +150,7 @@ const App: React.FC = () => {
   // App State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [friends, setFriends] = useState<User[]>([]);
+  const [friendRequests, setFriendRequests] = useState<FriendRequest[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [userLocation, setUserLocation] = useState<{lat: number, lng: number} | null>(null);
 
@@ -193,8 +199,6 @@ const App: React.FC = () => {
           id: authUser.id,
           email: authUser.email,
           name: authUser.user_metadata?.name || authUser.email.split('@')[0],
-          // Use username from metadata if available (set during Signup), otherwise derive from email
-          // Ensure username is lowercase
           username: (authUser.user_metadata?.username || authUser.email.split('@')[0]).toLowerCase(),
           profile_image: null,
           is_tracking_enabled: true
@@ -207,6 +211,7 @@ const App: React.FC = () => {
       }
 
       fetchFriends(authUser.id);
+      fetchFriendRequests(authUser.id);
       fetchAlerts(authUser.id);
     } catch (e) { console.error("Profile init error:", e); }
   };
@@ -219,6 +224,32 @@ const App: React.FC = () => {
 
       if (data) setFriends(data.map((item: any) => mapDbUserToAppUser(item.friend)));
     } catch (e) { console.error("Error fetching friends:", e); }
+  };
+
+  // --- FETCH PENDING REQUESTS ---
+  const fetchFriendRequests = async (userId: string) => {
+    try {
+      // Correctly filter by receiver_id = current user AND status = pending
+      const { data, error } = await supabase
+        .from("friend_requests")
+        .select("*, sender:users!sender_id(*)") // Join sender details
+        .eq("receiver_id", userId)
+        .eq("status", "pending");
+
+      if (error) throw error;
+
+      if (data) {
+        const requests: FriendRequest[] = data.map((req: any) => ({
+            id: req.id,
+            requester_id: req.sender_id,
+            receiver_id: req.receiver_id,
+            status: req.status,
+            created_at: req.created_at,
+            sender: req.sender ? mapDbUserToAppUser(req.sender) : undefined
+        }));
+        setFriendRequests(requests);
+      }
+    } catch (e) { console.error("Error fetching friend requests:", e); }
   };
 
   const fetchAlerts = async (userId: string) => {
@@ -261,7 +292,17 @@ const App: React.FC = () => {
            }));
       }).subscribe();
       
-    return () => { supabase.removeChannel(channel); };
+    // Subscribe to Friend Requests for realtime updates
+    const requestsChannel = supabase.channel('public:friend_requests')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests', filter: `receiver_id=eq.${session.user.id}` }, () => {
+          fetchFriendRequests(session.user.id);
+      })
+      .subscribe();
+
+    return () => { 
+        supabase.removeChannel(channel); 
+        supabase.removeChannel(requestsChannel);
+    };
   }, [session]);
 
   // --- 3. LOCATION TRACKING ---
@@ -305,34 +346,76 @@ const App: React.FC = () => {
   const handleAddFriend = async (identifier: string) => {
     if (!session?.user) return;
     try {
-      const searchLower = identifier.toLowerCase(); // Enforce lowercase for search
-      // Search by email OR username
+      const searchLower = identifier.toLowerCase(); 
       const { data: users } = await supabase
         .from('users')
         .select('id')
-        .or(`email.eq.${searchLower},username.eq.${searchLower}`);
+        .or(`email.ilike.${searchLower},username.ilike.${searchLower}`);
 
       if(users && users.length > 0) {
-        // Prevent adding self
         if (users[0].id === session.user.id) {
             alert("You cannot add yourself.");
             return;
         }
 
-        // Check if already friends (simple check logic for now)
         const isAlreadyFriend = friends.some(f => f.id === users[0].id);
         if (isAlreadyFriend) {
             alert("Already in your friends list.");
             return;
         }
 
-        await supabase.from('friends').insert({ user_id: session.user.id, friend_id: users[0].id });
-        fetchFriends(session.user.id);
+        // Check for existing pending request to avoid duplicates
+        const { data: existingRequest } = await supabase
+            .from('friend_requests')
+            .select('*')
+            .eq('sender_id', session.user.id)
+            .eq('receiver_id', users[0].id)
+            .eq('status', 'pending')
+            .single();
+
+        if (existingRequest) {
+            alert("Friend request already sent.");
+            return;
+        }
+
+        // Insert into Friend Requests table
+        const { error } = await supabase.from('friend_requests').insert({ 
+            sender_id: session.user.id, 
+            receiver_id: users[0].id,
+            status: 'pending'
+        });
+
+        if (error) throw error;
         alert(`Friend request sent to ${identifier}`);
       } else {
         alert("User not found");
       }
-    } catch(e) { console.error(e); alert("Error adding friend"); }
+    } catch(e: any) { console.error(e); alert("Error sending request: " + e.message); }
+  };
+
+  const handleAcceptRequest = async (request: FriendRequest) => {
+      if (!session?.user) return;
+      try {
+          // 1. Update request status
+          await supabase.from('friend_requests').update({ status: 'accepted' }).eq('id', request.id);
+          
+          // 2. Add entries to 'friends' table (Mutual)
+          await supabase.from('friends').insert([
+              { user_id: session.user.id, friend_id: request.requester_id },
+              { user_id: request.requester_id, friend_id: session.user.id }
+          ]);
+
+          // Refresh lists
+          fetchFriendRequests(session.user.id);
+          fetchFriends(session.user.id);
+      } catch (e) { console.error(e); }
+  };
+
+  const handleDeclineRequest = async (requestId: string) => {
+      try {
+          await supabase.from('friend_requests').update({ status: 'rejected' }).eq('id', requestId);
+          if (session?.user) fetchFriendRequests(session.user.id);
+      } catch (e) { console.error(e); }
   };
 
   const handleDismissAlert = async (id: string) => {
@@ -358,12 +441,11 @@ const App: React.FC = () => {
 
     const finalUpdates = { ...updates };
     if (finalUpdates.username) {
-        finalUpdates.username = finalUpdates.username.toLowerCase(); // Enforce lowercase on update
+        finalUpdates.username = finalUpdates.username.toLowerCase();
     }
 
-    // Special check for username uniqueness if being updated
     if (finalUpdates.username && finalUpdates.username !== currentUser.username) {
-        const { data: existing } = await supabase.from('users').select('id').eq('username', finalUpdates.username);
+        const { data: existing } = await supabase.from('users').select('id').ilike('username', finalUpdates.username);
         if (existing && existing.length > 0) {
             alert("Username already taken.");
             return;
@@ -452,10 +534,13 @@ const App: React.FC = () => {
       {activeTab === 'friends' && (
         <FriendsView 
           friends={friends} 
+          friendRequests={friendRequests}
           onAddFriend={handleAddFriend} 
           currentUser={currentUser}
           onLocateFriend={handleLocateFriend}
           onOpenMenu={() => setIsSidebarOpen(true)}
+          onAcceptRequest={handleAcceptRequest}
+          onDeclineRequest={handleDeclineRequest}
         />
       )}
       
@@ -482,7 +567,7 @@ const App: React.FC = () => {
       <BottomNav 
         currentTab={activeTab} 
         onTabChange={setActiveTab} 
-        alertCount={alerts.filter(a => !a.isRead).length} 
+        alertCount={alerts.filter(a => !a.isRead).length + friendRequests.length} 
       />
     </div>
   );
