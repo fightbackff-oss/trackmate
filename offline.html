@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TrackMate - Offline</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        background: linear-gradient(180deg, #0f1c2e 0%, #05080a 100%);
+        color: white;
+        font-family: system-ui, -apple-system, sans-serif;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 0;
+      }
+    </style>
+</head>
+<body class="p-6 text-center">
+    <div class="mb-8">
+        <div class="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#a3e635" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10.797 9.688a4.13 4.13 0 0 1 1.203 -1.688"></path>
+                <path d="M17.957 7.293a10 10 0 0 1 -4.276 8.707"></path>
+                <path d="M2 12h10"></path>
+                <path d="M2 16h6"></path>
+                <path d="M2 20h3"></path>
+                <line x1="2" y1="2" x2="22" y2="22"></line>
+            </svg>
+        </div>
+        <h1 class="text-3xl font-bold mb-3">You're Offline</h1>
+        <p class="text-gray-400 mb-8 max-w-xs mx-auto">TrackMate needs an internet connection to update locations and sync with friends.</p>
+        <button onclick="window.location.reload()" class="bg-[#a3e635] text-black font-bold py-3 px-8 rounded-xl shadow-lg hover:bg-[#bef264] transition-colors">
+            Try Again
+        </button>
+    </div>
+</body>
+</html>
