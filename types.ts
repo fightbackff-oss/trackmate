@@ -1,3 +1,4 @@
+
 export interface Location {
   lat: number;
   lng: number;
@@ -28,10 +29,11 @@ export interface User {
 
 export interface FriendRequest {
   id: string;
-  requester_id: string;
+  requester_id: string; // db column often sender_id, mapped manually or via join
   receiver_id: string;
   status: 'pending' | 'accepted' | 'rejected';
   created_at: string;
+  sender?: User; // Joined user data
 }
 
 export interface Alert {
